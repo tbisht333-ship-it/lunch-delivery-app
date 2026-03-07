@@ -129,15 +129,22 @@ export async function updateSettings(settings) {
         saveMockState();
         return new Promise(resolve => setTimeout(() => resolve({ success: true }), 500));
     }
+
+    const payload = { action: 'update_settings' };
+    for (const key in settings) {
+        if (typeof settings[key] === 'object' && settings[key] !== null) {
+            payload[key] = JSON.stringify(settings[key]);
+        } else {
+            payload[key] = settings[key];
+        }
+    }
+
     const res = await fetch(WEB_APP_URL, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: new URLSearchParams({
-            action: 'update_settings',
-            ...settings
-        })
+        body: new URLSearchParams(payload)
     });
     return await res.json();
 }
