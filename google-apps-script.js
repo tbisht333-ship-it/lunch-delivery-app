@@ -39,6 +39,40 @@ function setup() {
     }
 }
 
+function getMonthSheetName() {
+    const now = new Date();
+    const month = now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', month: 'long' });
+    const year = now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', year: 'numeric' });
+    return `${month}-${year}`; // e.g., March-2026
+}
+
+function getCurrentMonthSheet(ss) {
+    const sheetName = getMonthSheetName();
+    let sheet = ss.getSheetByName(sheetName);
+
+    if (!sheet) {
+        sheet = ss.insertSheet(sheetName);
+        const originalSheet = ss.getSheetByName(ORDERS_SHEET_NAME);
+
+        if (originalSheet) {
+            const lastCol = originalSheet.getLastColumn();
+            if (lastCol > 0) {
+                const headers = originalSheet.getRange(1, 1, 1, lastCol).getValues()[0];
+                if (!headers.includes("Invoice PDF")) {
+                    headers.push("Invoice PDF");
+                }
+                sheet.appendRow(headers);
+            } else {
+                sheet.appendRow(["Timestamp", "Date", "Name", "Building", "Mobile", "ThaliType", "Quantity", "PaymentMethod", "Invoice PDF"]);
+            }
+        } else {
+            sheet.appendRow(["Timestamp", "Date", "Name", "Building", "Mobile", "ThaliType", "Quantity", "PaymentMethod", "Invoice PDF"]);
+        }
+    }
+
+    return sheet;
+}
+
 function getConfig(ss) {
     const setSheet = ss.getSheetByName(SETTINGS_SHEET_NAME);
     const values = setSheet.getRange(2, 2, 50, 1).getValues();
@@ -82,7 +116,7 @@ function doGet(e) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
     const config = getConfig(ss);
-    const ordSheet = ss.getSheetByName(ORDERS_SHEET_NAME);
+    const ordSheet = getCurrentMonthSheet(ss);
     const data = ordSheet.getDataRange().getValues();
     const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
 
@@ -136,6 +170,34 @@ function doGet(e) {
     })).setMimeType(ContentService.MimeType.JSON);
 }
 
+function generateInvoicePDF(payload) {
+    try {
+        const folderName = "Shree Shyam Rasoi - Invoices";
+        let folder, folders = DriveApp.getFoldersByName(folderName);
+
+        if (folders.hasNext()) {
+            folder = folders.next();
+        } else {
+            folder = DriveApp.createFolder(folderName);
+        }
+
+        const doc = DocumentApp.create('Invoice_' + payload.name + '_' + Date.now());
+        const body = doc.getBody();
+        body.appendParagraph("SHREE SHYAM RASOI").setHeading(DocumentApp.ParagraphHeading.HEADING1);
+        body.appendParagraph("Order for: " + payload.name);
+        body.appendParagraph("Building: " + payload.building);
+        body.appendParagraph("Thali: " + payload.thaliType);
+        body.appendParagraph("Quantity: " + payload.quantity);
+        doc.saveAndClose();
+
+        const pdf = folder.createFile(doc.getAs(MimeType.PDF));
+        DriveApp.getFileById(doc.getId()).setTrashed(true); // Delete temp doc
+        return pdf.getUrl();
+    } catch (e) {
+        return "PDF Error: " + e.message;
+    }
+}
+
 function doPost(e) {
     try {
         const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -172,7 +234,7 @@ function doPost(e) {
             try {
                 const config = getConfig(ss);
                 const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
-                const ordSheet = ss.getSheetByName(ORDERS_SHEET_NAME);
+                const ordSheet = getCurrentMonthSheet(ss);
                 const data = ordSheet.getDataRange().getValues();
 
                 const now = new Date();
@@ -210,6 +272,9 @@ function doPost(e) {
                         .setMimeType(ContentService.MimeType.JSON);
                 }
 
+                // Generate the Invoice PDF BEFORE appending the row
+                const pdfUrl = generateInvoicePDF(payload);
+
                 const timestamp = new Date().toISOString();
                 ordSheet.appendRow([
                     timestamp,
@@ -219,11 +284,15 @@ function doPost(e) {
                     payload.mobile,
                     payload.thaliType || "Unknown",
                     requestedQuantity,
-                    payload.paymentMethod || "Unknown"
+                    payload.paymentMethod || "Unknown",
+                    pdfUrl
                 ]);
 
-                return ContentService.createTextOutput(JSON.stringify({ success: true, newStock: availableStock - requestedQuantity }))
-                    .setMimeType(ContentService.MimeType.JSON);
+                return ContentService.createTextOutput(JSON.stringify({
+                    success: true,
+                    newStock: availableStock - requestedQuantity,
+                    pdfUrl: pdfUrl
+                })).setMimeType(ContentService.MimeType.JSON);
 
             } finally {
                 lock.releaseLock();

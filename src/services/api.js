@@ -1,5 +1,5 @@
 // Replace this with your Google Apps Script Web App URL
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz84nLg5LVDTTjD6JD0hVAn_qF5c6S-9Mo5_uPzSkxDhxmkrrIwRJGncDx6xQYzLzm6/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxQgx25ZaydYULoa-FU5VxGnppBhgyiZJ61I14hqsnlQNGgiTD6opuciEy_X-mm674/exec";
 // Initial mock state for local development
 const defaultMockState = {
     maxStock: 50,
