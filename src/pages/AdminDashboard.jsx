@@ -145,15 +145,15 @@ export default function AdminDashboard() {
         setIsUploadingImage(true);
         try {
             const formData = new FormData();
-            formData.append('source', file);
-            const FREEIMAGE_KEY = "6d207e02198a847aa98d0a2a901485a5";
-            const res = await fetch(`https://freeimage.host/api/1/upload?key=${FREEIMAGE_KEY}&format=json`, {
+            formData.append('image', file);
+            const IMGBB_KEY = "3f9175d92974051dda4747efaf6dba3d";
+            const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, {
                 method: 'POST',
                 body: formData
             });
             const data = await res.json();
-            if (data.status_code === 200) {
-                setMenuForm(prev => ({ ...prev, image_url: data.image.url }));
+            if (data.success) {
+                setMenuForm(prev => ({ ...prev, image_url: data.data.url }));
             } else {
                 alert("Image upload failed");
             }
