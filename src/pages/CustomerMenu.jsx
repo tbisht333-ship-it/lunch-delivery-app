@@ -4,12 +4,13 @@ import { Clock, MapPin, Phone, User, ShoppingBag, CheckCircle, AlertOctagon, Plu
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-// Thali Configs
-const THALI_OPTIONS = {
-    mini: { id: 'mini', title: 'Mini Thali', price: 120, color: 'from-yellow-400 to-orange-500', badge: 'Quick Bite' },
-    standard: { id: 'standard', title: 'Standard Thali', price: 150, color: 'from-emerald-400 to-teal-500', badge: 'Most Popular' },
-    deluxe: { id: 'deluxe', title: 'Deluxe Thali', price: 180, color: 'from-purple-500 to-indigo-600', badge: 'Premium Feast' }
-};
+const GRADIENTS = [
+    'from-yellow-400 to-orange-500',
+    'from-emerald-400 to-teal-500',
+    'from-purple-500 to-indigo-600',
+    'from-rose-400 to-red-500',
+    'from-cyan-400 to-blue-500'
+];
 
 export default function CustomerMenu() {
     const [status, setStatus] = useState(null);
@@ -83,12 +84,14 @@ export default function CustomerMenu() {
 
         Object.keys(cart).forEach(id => {
             const qty = cart[id];
-            const price = status?.dailyMenu?.[id]?.price || THALI_OPTIONS[id].price;
+            const menuItem = status?.menu?.find(m => String(m.id) === String(id));
+            if (!menuItem) return;
+            const price = Number(menuItem.price);
             baseTotal += (price * qty);
             totalItems += qty;
             items.push({
-                ...THALI_OPTIONS[id],
-                title: status?.dailyMenu?.[id]?.title || THALI_OPTIONS[id].title,
+                id: menuItem.id,
+                title: menuItem.name,
                 qty,
                 price,
                 itemSubtotal: price * qty
@@ -447,45 +450,52 @@ export default function CustomerMenu() {
 
                 {/* Menu Cards */}
                 <div className="space-y-5 mb-8">
-                    {Object.values(THALI_OPTIONS).map((thali) => {
-                        const qtyInCart = cart[thali.id] || 0;
+                    {status?.menu?.map((menuItem, idx) => {
+                        const qtyInCart = cart[menuItem.id] || 0;
+                        const isItemAvailable = menuItem.is_available !== false;
+                        const canOrderItem = canOrder && isItemAvailable;
 
                         return (
                             <div
-                                key={thali.id}
+                                key={menuItem.id}
                                 className={`bg-white rounded-3xl overflow-hidden border-2 transition-all duration-300 shadow-sm relative group
                                 ${qtyInCart > 0 ? 'border-orange-500 shadow-xl ring-4 ring-orange-500/10' : 'border-gray-100 hover:border-orange-200 hover:shadow-md'}
-                                ${(!canOrder || isWeekend) ? 'opacity-60 pointer-events-none' : ''}`}
+                                ${(!canOrderItem || isWeekend) ? 'opacity-70 pointer-events-none' : ''}`}
                             >
-                                <div className={`h-32 bg-gradient-to-r ${thali.color} relative overflow-hidden flex items-end px-5 py-4`}>
-                                    {status?.dailyMenu?.[thali.id]?.image ? (
-                                        <img src={status.dailyMenu[thali.id].image} alt={thali.title} className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:scale-110 transition-transform duration-700" />
+                                <div className={`h-40 bg-gradient-to-r ${GRADIENTS[idx % GRADIENTS.length]} relative overflow-hidden flex items-end px-5 py-4`}>
+                                    {menuItem.image_url ? (
+                                        <img src={menuItem.image_url} alt={menuItem.name} className={`absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ${!isItemAvailable ? 'grayscale opacity-60' : 'opacity-90'}`} />
                                     ) : (
                                         <div className="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-white opacity-10 rounded-full blur-xl"></div>
                                     )}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
+                                    {!isItemAvailable && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-20">
+                                            <span className="bg-red-600 text-white px-6 py-2 rounded-full font-black text-lg shadow-2xl tracking-widest border border-red-400/50 transform -rotate-6">SOLD OUT</span>
+                                        </div>
+                                    )}
                                     <div className="relative z-10 w-full flex justify-between items-end">
-                                        <h2 className="text-2xl font-black text-white drop-shadow-md tracking-tight">{thali.title}</h2>
-                                        <span className="bg-white/20 text-white text-[10px] font-bold px-2 py-1 rounded-full backdrop-blur-md shadow-sm uppercase tracking-wider border border-white/30 mb-1">
-                                            {thali.badge}
+                                        <h2 className="text-2xl font-black text-white drop-shadow-md tracking-tight leading-tight">{menuItem.name}</h2>
+                                        <span className="bg-white/20 text-white text-[10px] font-bold px-3 py-1.5 rounded-full backdrop-blur-md shadow-sm uppercase tracking-wider border border-white/30 mb-1 ml-4 whitespace-nowrap">
+                                            {menuItem.category}
                                         </span>
                                     </div>
                                 </div>
                                 <div className="p-5">
                                     <p className="text-gray-600 text-sm leading-relaxed mb-4 min-h-[40px]">
-                                        {status?.dailyMenu?.[thali.id]?.desc || "Loading description..."}
+                                        {menuItem.description}
                                     </p>
                                     <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-                                        <div className="text-2xl font-black text-gray-900">₹{status?.dailyMenu?.[thali.id]?.price || thali.price}</div>
+                                        <div className="text-2xl font-black text-gray-900">₹{menuItem.price}</div>
 
                                         {/* Zomato-style Add/Remove Controls */}
                                         {qtyInCart > 0 ? (
                                             <div className="flex items-center space-x-4 bg-orange-50 px-3 py-1.5 rounded-xl border border-orange-200 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)]">
-                                                <button onClick={() => handleRemoveFromCart(thali.id)} className="text-orange-600 p-1 hover:bg-white rounded-lg transition-colors">
+                                                <button onClick={() => handleRemoveFromCart(menuItem.id)} className="text-orange-600 p-1 hover:bg-white rounded-lg transition-colors">
                                                     <Minus className="h-5 w-5" />
                                                 </button>
                                                 <span className="font-black text-orange-700 w-4 text-center text-lg">{qtyInCart}</span>
-                                                <button onClick={() => handleAddToCart(thali.id)} className="text-orange-600 p-1 hover:bg-white rounded-lg transition-colors">
+                                                <button onClick={() => handleAddToCart(menuItem.id)} className="text-orange-600 p-1 hover:bg-white rounded-lg transition-colors">
                                                     <Plus className="h-5 w-5" />
                                                 </button>
                                             </div>
@@ -493,7 +503,7 @@ export default function CustomerMenu() {
                                             <button
                                                 className="px-6 py-2 rounded-xl text-sm font-bold transition-all bg-white border-2 border-orange-500 text-orange-600 hover:bg-orange-50 shadow-sm"
                                                 onClick={() => {
-                                                    if (canOrder && !isWeekend) handleAddToCart(thali.id);
+                                                    if (canOrderItem && !isWeekend) handleAddToCart(menuItem.id);
                                                 }}
                                             >
                                                 ADD

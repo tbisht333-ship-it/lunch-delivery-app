@@ -1,5 +1,6 @@
 const SETTINGS_SHEET_NAME = "Settings";
 const ORDERS_SHEET_NAME = "Orders";
+const MENU_SHEET_NAME = "Menu_Settings";
 
 const DEFAULT_CONFIG = {
     maxStock: 50,
@@ -36,6 +37,10 @@ function setup() {
     if (!ss.getSheetByName(ORDERS_SHEET_NAME)) {
         const ordSheet = ss.insertSheet(ORDERS_SHEET_NAME);
         ordSheet.appendRow(["Timestamp", "Date", "Name", "Building", "Mobile", "ThaliType", "Quantity", "PaymentMethod"]);
+    }
+    if (!ss.getSheetByName(MENU_SHEET_NAME)) {
+        const menuSheet = ss.insertSheet(MENU_SHEET_NAME);
+        menuSheet.appendRow(["id", "name", "description", "price", "image_url", "category", "is_available"]);
     }
 }
 
@@ -111,11 +116,31 @@ function saveConfig(ss, configData) {
     }
 }
 
+function getMenu(ss) {
+    const menuSheet = ss.getSheetByName(MENU_SHEET_NAME);
+    if (!menuSheet) return [];
+
+    const lastRow = menuSheet.getLastRow();
+    if (lastRow <= 1) return [];
+
+    const data = menuSheet.getRange(2, 1, lastRow - 1, 7).getValues();
+    return data.map(row => ({
+        id: row[0],
+        name: row[1],
+        description: row[2],
+        price: row[3],
+        image_url: row[4],
+        category: row[5],
+        is_available: row[6] === true || row[6] === "true" || row[6] === "TRUE" || row[6] === 1
+    }));
+}
+
 function doGet(e) {
     const action = e.parameter.action;
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
     const config = getConfig(ss);
+    const menu = getMenu(ss);
     const ordSheet = getCurrentMonthSheet(ss);
     const data = ordSheet.getDataRange().getValues();
     const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
@@ -158,6 +183,7 @@ function doGet(e) {
             success: true,
             orders: orders,
             totalServings: totalServings,
+            menu: menu,
             ...config
         })).setMimeType(ContentService.MimeType.JSON);
     }
@@ -165,6 +191,7 @@ function doGet(e) {
     return ContentService.createTextOutput(JSON.stringify({
         success: true,
         ...config,
+        menu: menu,
         totalServings: totalServings,
         availableStock: Math.max(0, config.maxStock - totalServings)
     })).setMimeType(ContentService.MimeType.JSON);
@@ -224,6 +251,37 @@ function doPost(e) {
             saveConfig(ss, config);
 
             return ContentService.createTextOutput(JSON.stringify({ success: true }))
+                .setMimeType(ContentService.MimeType.JSON);
+        }
+
+        if (action === 'sync_menu') {
+            const menuSheet = ss.getSheetByName(MENU_SHEET_NAME);
+            if (!menuSheet) {
+                return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'Menu sheet not found' }))
+                    .setMimeType(ContentService.MimeType.JSON);
+            }
+
+            const newMenu = payload.menu;
+            const menuData = typeof newMenu === 'string' ? JSON.parse(newMenu) : newMenu;
+
+            const lastRow = menuSheet.getLastRow();
+            if (lastRow > 1) {
+                menuSheet.getRange(2, 1, lastRow - 1, 7).clearContent();
+            }
+
+            if (menuData && menuData.length > 0) {
+                const rows = menuData.map(item => [
+                    item.id,
+                    item.name,
+                    item.description,
+                    item.price,
+                    item.image_url,
+                    item.category,
+                    item.is_available
+                ]);
+                menuSheet.getRange(2, 1, rows.length, 7).setValues(rows);
+            }
+            return ContentService.createTextOutput(JSON.stringify({ success: true, menu: menuData }))
                 .setMimeType(ContentService.MimeType.JSON);
         }
 

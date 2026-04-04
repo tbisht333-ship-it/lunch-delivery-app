@@ -7,6 +7,7 @@ const defaultMockState = {
     availableStock: 40,
     shopOpen: true,
     orders: [],
+    menu: [],
     dailyMenu: {
         mini: { desc: "1 Main Dish (Dal or Gravy), 3 Rotis, Small Rice, and Salad.", image: null, price: 120 },
         standard: { desc: "1 Gravy Item, 1 Dry Sabzi, 4 Rotis, Rice, Salad, and Raita.", image: null, price: 150 },
@@ -62,6 +63,7 @@ export async function fetchStatus() {
             totalServings: state.totalServings,
             availableStock: Math.max(0, state.maxStock - state.totalServings),
             shopOpen: state.shopOpen,
+            menu: state.menu || [],
             dailyMenu: state.dailyMenu,
             appHeader: state.appHeader,
             paymentSettings: state.paymentSettings
@@ -80,6 +82,7 @@ export async function fetchAdminData() {
             totalServings: state.totalServings,
             maxStock: state.maxStock,
             shopOpen: state.shopOpen,
+            menu: state.menu || [],
             dailyMenu: state.dailyMenu,
             appHeader: state.appHeader,
             paymentSettings: state.paymentSettings
@@ -145,6 +148,24 @@ export async function updateSettings(settings) {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams(payload)
+    });
+    return await res.json();
+}
+
+export async function syncMenu(menu) {
+    if (WEB_APP_URL === "YOUR_WEB_APP_URL_HERE") {
+        const state = getMockState();
+        state.menu = menu;
+        saveMockState();
+        return new Promise(resolve => setTimeout(() => resolve({ success: true, menu }), 500));
+    }
+    const res = await fetch(WEB_APP_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            action: 'sync_menu',
+            menu: JSON.stringify(menu)
+        })
     });
     return await res.json();
 }
