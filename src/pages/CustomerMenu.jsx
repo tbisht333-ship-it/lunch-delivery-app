@@ -403,6 +403,17 @@ export default function CustomerMenu() {
                 </div>
             </div>
 
+            {/* Hero Banner */}
+            <div className="max-w-md mx-auto relative w-full aspect-square sm:aspect-[4/3] shadow-lg rounded-b-3xl overflow-hidden">
+                <img src="/header-banner.jpg" alt="Hero Banner" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40"></div>
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+                    <h1 className="text-4xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-[#FFF200] via-[#FFD700] to-[#E59400] drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] tracking-wide leading-tight">
+                        Shree Shyam Rasoi
+                    </h1>
+                </div>
+            </div>
+
             <main className="max-w-md mx-auto px-4 mt-6">
 
                 <div className="mb-6 rounded-3xl overflow-hidden shadow-lg border border-gray-100 relative group">
